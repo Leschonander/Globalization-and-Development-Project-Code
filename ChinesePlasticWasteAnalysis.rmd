@@ -1,0 +1,206 @@
+```{r}
+library(tidyverse)
+library(lubridate)
+library(broom)
+
+library(rsample)
+library(caret)
+library(yardstick)
+
+library(extrafont)
+
+theme_my_axios <- function(...) {
+    theme_minimal() +
+    theme(
+      text = element_text(family = "Roboto Mono"),
+      panel.grid.major.x = element_blank() ,
+      panel.grid.major.y = element_line(),  # (size=.1, color="grey" )
+      plot.title = element_text(color = "#333333"),
+      plot.subtitle =  element_text(color = "#737373"),
+      plot.caption = element_text(color = "#737373"),
+      axis.title.x = element_text(color = "#737373"),
+      axis.title.y = element_text(color = "#737373"),
+      axis.text = element_text(color = "#737373"),
+      legend.text = element_text(color = "#737373")
+      #legend.position="none"
+      )  
+}
+
+save_chart <- function(name, graphic){
+  ggsave(gsub(" ", '', paste(getwd(), "/", name ,".svg")), graphic, height = 7, width = 10)
+}
+
+save_chart_map <- function(name, graphic){
+  ggsave(gsub(" ", '', paste(getwd(), "/", name ,".svg")), graphic, height = 7, width = 14)
+}
+
+filter_grep <- function(phrase, variable){
+  filter(grepl(phrase, variable))
+}
+
+options(scipen=10000)
+
+setwd(getwd())
+```
+
+```{r}
+data <- readxl::read_xlsx("ChinaPlasticData.xlsx") %>% as_tibble()
+```
+
+```{r}
+data %>%
+  ggplot(aes(Period, `Trade Value (US$)`, color = Partner)) + 
+  geom_line() + 
+  theme_my_axios() + labs(
+    x = "Year",
+    y = "Trade Value (US$)",
+    title = "Plastic Waste Exports to China",
+    subtitle = "Source: COMTRADE",
+    caption = "@LarsESchonander"
+  ) -> plastic_china
+
+save_chart("PlasticChina", plastic_china)
+```
+
+# Looking at Vietnam
+
+```{r}
+data2 <- readxl::read_xlsx("VietnamWaste.xlsx") %>% as_tibble()
+```
+
+```{r}
+data2 %>% summary()
+```
+
+```{r}
+data2 %>%
+  ggplot(aes(Period, `Trade Value (US$)`, color = Partner)) + 
+  geom_line() + 
+  theme_my_axios() + labs(
+    x = "Year",
+    y = "Trade Value (US$)",
+    title = "Plastic Waste Exports to Vietnam",
+    subtitle = "Source: COMTRADE",
+    caption = "@LarsESchonander"
+  )
+```
+
+# Malaysia
+
+```{r}
+readxl::read_xlsx("MalWaste.xlsx") %>% as_tibble() %>%
+  ggplot(aes(Period, `Trade Value (US$)`, color = Partner)) + 
+  geom_line() + 
+  theme_my_axios() + labs(
+    x = "Year",
+    y = "Trade Value (US$)",
+    title = "Plastic Waste Exports to Malaysia",
+    subtitle = "Source: COMTRADE",
+    caption = "@LarsESchonander"
+  )
+```
+
+
+# Thailand
+
+```{r}
+readxl::read_xlsx("ThaiWaste.xlsx") %>% as_tibble() %>%
+  ggplot(aes(Period, `Trade Value (US$)`, color = Partner)) + 
+  geom_line() + 
+  theme_my_axios() + labs(
+    x = "Year",
+    y = "Trade Value (US$)",
+    title = "Plastic Waste Exports to Thailand",
+    subtitle = "Source: COMTRADE",
+    caption = "@LarsESchonander"
+  )
+```
+
+# General analysis
+
+```{r}
+readxl::read_xlsx("ChinaPlasticData.xlsx") %>% as_tibble() %>%
+  group_by(Period) %>%
+  summarise(
+    `Total Trade Value (US$)` = sum(`Trade Value (US$)`),
+    Country = "China"
+  ) %>%
+  filter(Period > 2014) -> A
+
+readxl::read_xlsx("VietnamWaste.xlsx") %>% as_tibble() %>%
+  group_by(Period) %>%
+  summarise(
+    `Total Trade Value (US$)` = sum(`Trade Value (US$)`),
+    Country = "Vietnam"
+  ) -> B
+
+readxl::read_xlsx("MalWaste.xlsx") %>% as_tibble() %>%
+  group_by(Period) %>%
+  summarise(
+    `Total Trade Value (US$)` = sum(`Trade Value (US$)`),
+    Country = "Malaysia"
+  ) -> C
+
+readxl::read_xlsx("ThaiWaste.xlsx") %>% as_tibble() %>%
+  group_by(Period) %>%
+  summarise(
+    `Total Trade Value (US$)` = sum(`Trade Value (US$)`),
+    Country = "Thailand"
+  ) -> D
+
+A %>%
+  left_join(., B, by = "Period") %>%
+  left_join(., C, by = "Period") %>%
+  left_join(., D, by = "Period") %>%
+    ggplot() +
+      geom_line(aes(Period, `Total Trade Value (US$).x`, color = "China")) +
+      geom_line(aes(Period, `Total Trade Value (US$).y`, color = "Vietnam")) +
+      geom_line(aes(Period, `Total Trade Value (US$).x.x`, color = "Malaysia")) +
+      geom_line(aes(Period, `Total Trade Value (US$).y.y`, color = "Thailand")) + 
+      theme_my_axios() +
+      labs(
+        x = "Year",
+        y = "Trade Value (US$) (Total)",
+        title = "Change in Plastic Waste Exports",
+        subtitle = "Source: COMTRADE",
+        caption = "@LarsESchonander",
+        colour = "Country"
+      ) 
+```
+
+```{r}
+(readxl::read_xlsx("FewYears.xlsx") %>% as_tibble() %>%
+  filter(Period == 2017) %>%
+  mutate(Reporter = as_factor(Reporter)) %>%
+  group_by(Reporter) %>%
+  summarise(
+    `Mean Trade Value (US$)` = mean(`Trade Value (US$)`)
+  ) %>%
+    ggplot(aes(fct_reorder(Reporter,  `Mean Trade Value (US$)`),  `Mean Trade Value (US$)`)) + geom_col(fill = "dodgerblue") + theme_my_axios() +
+      labs(
+        x = "Countru",
+        y = "Trade Value (US$)",
+        title = "Mean Trade Value (US$) in 2017",
+        subtitle = "Source: COMTRADE",
+        caption = "@LarsESchonander",
+        colour = "Country"
+      ) -> plastic_2017)
+
+save_chart("Plastic2017", plastic_2017)
+```
+
+```{r}
+(readxl::read_xlsx("FewYears.xlsx") %>% as_tibble() %>%
+  filter(Reporter != "China") %>%
+    ggplot(aes(Period, `Trade Value (US$)`, color = Partner)) + 
+      geom_line() + 
+      theme_my_axios() + labs(
+        x = "Year",
+        y = "Trade Value (US$)",
+        title = "Plastic Waste Exports Across Southeast Asia",
+        subtitle = "Source: COMTRADE",
+        caption = "@LarsESchonander"
+      ) + facet_wrap(~Reporter, nrow = 3) -> plastic_southeast)
+save_chart("PlasticSoutheast", plastic_southeast)
+```
+
